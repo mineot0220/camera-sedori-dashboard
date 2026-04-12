@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中古カメラせどり ダッシュボード</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #1c2330; --border: #30363d;
+      --text: #e6edf3; --text-muted: #8b949e;
+      --green: #3fb950; --green-dim: #1a4d2e;
+      --teal: #39d0d8; --teal-dim: #0d2e30;
+      --yellow: #d29922; --yellow-dim: #3d2f00;
+      --red: #f85149; --red-dim: #3d0f0d;
+      --blue: #58a6ff; --blue-dim: #0d2045;
+      --purple: #bc8cff;
+      --radius: 12px; --radius-sm: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; font-size: 14px; min-height: 100vh; }
+
+    /* Loading Overlay */
+    #loading-overlay {
+      position: fixed; inset: 0; background: rgba(13,17,23,0.85);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 999; gap: 16px;
+    }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--teal); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-overlay p { color: var(--text-muted); font-size: 14px; }
+    #error-msg {
+      display: none; background: var(--red-dim); border: 1px solid var(--red);
+      border-radius: var(--radius-sm); padding: 12px 16px; margin: 16px 24px;
+      color: var(--red); font-size: 13px;
+    }
+
+    /* Header */
+    .header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+      height: 56px; position: sticky; top: 0; z-index: 100;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--teal), var(--blue));
+      border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .header-title { font-size: 16px; font-weight: 700; }
+    .header-badge {
+      background: var(--teal-dim); color: var(--teal);
+      border: 1px solid var(--teal); border-radius: 4px;
+      padding: 2px 8px; font-size: 11px; font-weight: 600;
+    }
+    .header-nav { display: flex; gap: 4px; }
+    .nav-btn {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      padding: 6px 14px; border-radius: 6px; font-size: 13px; font-family: inherit;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-btn:hover { background: var(--surface2); color: var(--text); }
+    .nav-btn.active { background: var(--surface2); color: var(--text); font-weight: 600; }
+    .header-right { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
+    .date-badge {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer;
+    }
+    .date-badge:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* Main */
+    .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .page-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+
+    /* Grid */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+    .grid-chart { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    /* Card */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .card-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+    .card-value { font-size: 28px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
+    .card-value-lg { font-size: 36px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
+    .card-value-sm { font-size: 20px; font-weight: 700; line-height: 1.2; margin-bottom: 4px; }
+    .card-sub { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    /* Badge */
+    .badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-green  { background: var(--green-dim);  color: var(--green); }
+    .badge-red    { background: var(--red-dim);    color: var(--red); }
+    .badge-yellow { background: var(--yellow-dim); color: var(--yellow); }
+    .badge-blue   { background: var(--blue-dim);   color: var(--blue); }
+    .badge-teal   { background: var(--teal-dim);   color: var(--teal); }
+
+    .color-green  { color: var(--green); }
+    .color-red    { color: var(--red); }
+    .color-yellow { color: var(--yellow); }
+    .color-teal   { color: var(--teal); }
+    .color-blue   { color: var(--blue); }
+    .color-muted  { color: var(--text-muted); }
+
+    /* Section header */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .section-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .section-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-green { background: var(--green); } .dot-teal { background: var(--teal); }
+    .dot-yellow { background: var(--yellow); } .dot-red { background: var(--red); }
+    .dot-blue { background: var(--blue); }
+
+    /* Progress */
+    .progress-wrap { margin-top: 10px; }
+    .progress-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; color: var(--text-muted); }
+    .progress-bar-bg { background: var(--surface2); border-radius: 20px; height: 8px; overflow: hidden; }
+    .progress-bar { height: 100%; border-radius: 20px; background: linear-gradient(90deg, var(--teal), var(--blue)); transition: width 0.6s ease; }
+    .progress-bar.warn { background: linear-gradient(90deg, var(--yellow), var(--red)); }
+
+    /* Table */
+    .monthly-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .monthly-table th { padding: 8px 12px; text-align: right; color: var(--text-muted); font-size: 11px; font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .monthly-table th:first-child { text-align: left; }
+    .monthly-table td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+    .monthly-table td:first-child { text-align: left; font-weight: 600; }
+    .monthly-table tr:last-child td { border-bottom: none; }
+    .monthly-table tr.current-month td { background: rgba(57,208,216,0.05); }
+    .monthly-table tr.current-month td:first-child { border-left: 2px solid var(--teal); padding-left: 10px; }
+
+    /* Alert */
+    .alert-box { background: var(--yellow-dim); border: 1px solid var(--yellow); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--yellow); }
+    .alert-box.info { background: var(--teal-dim); border-color: var(--teal); color: var(--teal); }
+
+    /* KPI rows */
+    .kpi-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .kpi-row:last-child { border-bottom: none; }
+    .kpi-label { font-size: 13px; color: var(--text-muted); }
+    .kpi-val { font-size: 14px; font-weight: 600; }
+
+    /* Charts */
+    .chart-container { position: relative; height: 220px; }
+    .chart-container-sm { position: relative; height: 160px; }
+    .divider { height: 1px; background: var(--border); margin: 14px 0; }
+    .legend-row { display: flex; gap: 12px; font-size: 11px; color: var(--text-muted); }
+    .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+
+    /* Refresh button */
+    .refresh-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      cursor: pointer; padding: 4px 10px; border-radius: 6px; font-size: 12px;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .refresh-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .grid-4 { grid-template-columns: 1fr 1fr; }
+      .grid-chart { grid-template-columns: 1fr; }
+      .header-nav { display: none; }
+    }
+    @media (max-width: 600px) {
+      .main { padding: 12px; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .card-value { font-size: 22px; }
+      .card-value-lg { font-size: 26px; }
+      .header { padding: 0 12px; }
+      .header-title { font-size: 14px; }
+      .monthly-table { font-size: 11px; }
+      .monthly-table th, .monthly-table td { padding: 6px 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>スプレッドシートからデータ取得中…</p>
+</div>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">📷</div>
+    <span class="header-title">カメラせどり管理</span>
+    <span class="header-badge" id="badge-year">——</span>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active">ダッシュボード</button>
+    <button class="nav-btn">月次推移</button>
+    <button class="nav-btn">在庫管理</button>
+    <button class="nav-btn">目標設定</button>
+  </nav>
+  <div class="header-right">
+    <button class="refresh-btn" onclick="loadData()">↻ 更新</button>
+    <span class="date-badge">📅 <span id="current-month">——</span></span>
+  </div>
+</header>
+
+<main class="main">
+  <div id="error-msg"></div>
+  <div class="page-title">ダッシュボード</div>
+
+  <!-- 上段KPI -->
+  <div class="grid-4">
+    <div class="card">
+      <div class="card-label">今月売上</div>
+      <div class="card-value color-teal" id="sales-this-month">——</div>
+      <div class="card-sub">
+        <span class="badge" id="sales-mom-badge">——</span>
+        <span>前月比</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">今月利益</div>
+      <div class="card-value color-green" id="profit-this-month">——</div>
+      <div class="card-sub">
+        <span class="badge badge-green" id="profit-rate-badge">利益率 ——</span>
+        <span class="badge" id="profit-mom-badge">——</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">今月仕入</div>
+      <div class="card-value" id="purchase-amt">——</div>
+      <div class="card-sub">
+        <span id="purchase-num">——</span>
+        <span class="color-muted" id="purchase-avg">——</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">簡易キャッシュ</div>
+      <div class="card-value color-yellow" id="cash-this-month">——</div>
+      <div class="card-sub">
+        <span class="badge" id="cash-mom-badge">——</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 年間累計 + 在庫 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title"><span class="section-dot dot-teal"></span>年間累計</div>
+        <span class="color-muted" style="font-size:12px" id="ytd-period">——</span>
+      </div>
+      <div class="grid-2" style="margin-bottom:0; gap:12px;">
+        <div>
+          <div class="card-label">累計売上</div>
+          <div class="card-value-sm color-teal" id="ytd-sales">——</div>
+        </div>
+        <div>
+          <div class="card-label">累計利益</div>
+          <div class="card-value-sm color-green" id="ytd-profit">——</div>
+        </div>
+        <div>
+          <div class="card-label">年間利益率</div>
+          <div class="card-value-sm" id="ytd-profit-rate">——</div>
+        </div>
+        <div>
+          <div class="card-label">累計キャッシュ</div>
+          <div class="card-value-sm" id="ytd-cash">——</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title"><span class="section-dot dot-yellow"></span>在庫状況（月末）</div>
+      </div>
+      <div class="grid-2" style="margin-bottom:0; gap:12px;">
+        <div>
+          <div class="card-label">在庫金額</div>
+          <div class="card-value-sm color-yellow" id="stock-amt">——</div>
+        </div>
+        <div>
+          <div class="card-label">在庫個数</div>
+          <div class="card-value-sm" id="stock-num">——</div>
+        </div>
+        <div>
+          <div class="card-label">回転率</div>
+          <div class="card-value-sm" id="turn-rate" style="color:var(--red)">——</div>
+          <div id="turn-note" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
+        </div>
+        <div>
+          <div class="card-label">1個あたり利益</div>
+          <div class="card-value-sm" id="profit-per-item">——</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 目標達成 -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="section-header">
+      <div class="section-title"><span class="section-dot dot-red"></span>今月の目標対比</div>
+      <span class="badge" id="target-badge">——</span>
+    </div>
+    <div class="grid-3" style="margin-bottom:12px; gap:16px;">
+      <div>
+        <div class="card-label">今月売上目標</div>
+        <div class="card-value-sm" id="target-sales">——</div>
+        <div class="progress-wrap">
+          <div class="progress-header">
+            <span>達成率</span>
+            <span id="achieve-rate-text" style="color:var(--red)">——</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar warn" id="achieve-progress" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card-label">今月販売個数</div>
+        <div class="card-value-sm" id="sell-num">——</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:6px">販売個数</div>
+      </div>
+      <div>
+        <div class="card-label">今月利益率</div>
+        <div class="card-value-sm color-green" id="profit-rate-this">——</div>
+        <div id="profit-rate-note" style="font-size:12px;margin-top:6px;color:var(--green)">——</div>
+      </div>
+    </div>
+    <div class="alert-box" id="main-alert">——</div>
+  </div>
+
+  <!-- チャート -->
+  <div class="grid-chart">
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title"><span class="section-dot dot-teal"></span>月別 売上・利益推移</div>
+        <div class="legend-row">
+          <span><span class="legend-dot" style="background:rgba(57,208,216,0.8)"></span>売上</span>
+          <span><span class="legend-dot" style="background:rgba(63,185,80,0.8)"></span>利益</span>
+          <span><span class="legend-dot" style="background:rgba(188,140,255,0.6)"></span>仕入</span>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="monthlyChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title"><span class="section-dot dot-green"></span>利益率トレンド</div>
+      </div>
+      <div class="chart-container-sm"><canvas id="profitRateChart"></canvas></div>
+      <div class="divider"></div>
+      <div id="profit-rate-list"></div>
+    </div>
+  </div>
+
+  <!-- 月別テーブル -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="section-header">
+      <div class="section-title"><span class="section-dot dot-blue"></span>月別実績一覧</div>
+      <span style="font-size:12px;color:var(--text-muted)" id="table-period">——</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="monthly-table">
+        <thead>
+          <tr>
+            <th>月</th><th>売上</th><th>利益</th><th>利益率</th>
+            <th>仕入金額</th><th>仕入数</th><th>販売数</th><th>平均単価</th><th>簡易C/F</th>
+          </tr>
+        </thead>
+        <tbody id="monthly-tbody"></tbody>
+        <tfoot id="monthly-tfoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- キャッシュ + 個数 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title"><span class="section-dot dot-yellow"></span>月別 簡易キャッシュフロー</div>
+      </div>
+      <div class="chart-container"><canvas id="cashChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title"><span class="section-dot dot-teal"></span>月別 仕入数 / 販売数</div>
+      </div>
+      <div class="chart-container"><canvas id="unitChart"></canvas></div>
+    </div>
+  </div>
+</main>
+
+<script>
+// =============================================
+//  設定
+// =============================================
+const SHEET_ID = '17i0SkrlAsfGoAGgjyjKXeH1cfLdmF6YQgrD-ok3bLnA';
+const DASHBOARD_GID  = '1741962268';
+const MONTHLY_GID    = '1045067849';
+
+Chart.defaults.color = '#8b949e';
+Chart.defaults.borderColor = '#30363d';
+Chart.defaults.font.family = "-apple-system, 'Hiragino Sans', sans-serif";
+Chart.defaults.font.size = 11;
+
+// =============================================
+//  ユーティリティ
+// =============================================
+function csvUrl(gid) {
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+}
+
+async function fetchCSV(gid) {
+  const res = await fetch(csvUrl(gid));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  return parseCSV(text);
+}
+
+function parseCSV(text) {
+  const rows = [];
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  for (const line of lines) {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    cols.push(cur.trim());
+    rows.push(cols);
+  }
+  return rows;
+}
+
+// 数値抽出（¥ , % 円 個 などを除去）
+function num(str) {
+  if (str === null || str === undefined || str === '') return 0;
+  const s = String(str).replace(/[¥,円個\s]/g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+// パーセント文字列 → 数値（"32.25%" → 32.25, "0.3225" → 32.25）
+function pct(str) {
+  if (!str) return 0;
+  const s = String(str).trim();
+  const n = parseFloat(s.replace(/[%,\s]/g, ''));
+  if (isNaN(n)) return 0;
+  return s.includes('%') ? n : (Math.abs(n) < 2 ? n * 100 : n);
+}
+
+function fmtYen(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+function fmtPct(n) { return n.toFixed(2) + '%'; }
+
+// 前月比バッジクラス
+function momClass(str) {
+  const n = parseFloat(String(str).replace(/[%,\s]/g, ''));
+  if (isNaN(n)) return 'badge-blue';
+  return n >= 0 ? 'badge-green' : 'badge-red';
+}
+function momArrow(str) {
+  const n = parseFloat(String(str).replace(/[%,\s]/g, ''));
+  if (isNaN(n) || !str) return '——';
+  return (n >= 0 ? '▲ +' : '▼ ') + String(str).replace(/%/, '') + '%';
+}
+
+// ラベルで行を検索（列colL のセルにlabelを含む → 列colV の値を返す）
+function findVal(rows, label, colL = 0, colV = 1) {
+  const row = rows.find(r => r[colL] && r[colL].includes(label));
+  return row ? (row[colV] || '') : '';
+}
+
+// ラベルで行を検索し、colStart〜colStart+12 の値配列を返す
+function findMonthlyRow(rows, label, colL = 1, colStart = 2) {
+  const row = rows.find(r => r[colL] && r[colL].includes(label));
+  if (!row) return new Array(12).fill(0);
+  return row.slice(colStart, colStart + 12).map(v => num(v));
+}
+
+// =============================================
+//  DOM更新ヘルパー
+// =============================================
+function setText(id, val) { const e = document.getElementById(id); if (e) e.textContent = val; }
+function setHtml(id, val) { const e = document.getElementById(id); if (e) e.innerHTML = val; }
+
+function setBadge(id, str, colorClass) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  e.textContent = str;
+  e.className = 'badge ' + (colorClass || '');
+}
+
+// =============================================
+//  グラフ管理
+// =============================================
+const charts = {};
+function destroyCharts() { Object.values(charts).forEach(c => c.destroy()); }
+
+function buildCharts(monthLabels, d) {
+  destroyCharts();
+
+  // 月別売上・利益・仕入
+  charts.monthly = new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        { label: '売上', data: d.sales, backgroundColor: 'rgba(57,208,216,0.7)', borderColor: 'rgba(57,208,216,1)', borderWidth: 1, borderRadius: 4 },
+        { label: '利益', data: d.profit, backgroundColor: 'rgba(63,185,80,0.7)', borderColor: 'rgba(63,185,80,1)', borderWidth: 1, borderRadius: 4 },
+        { label: '仕入', data: d.purchase, backgroundColor: 'rgba(188,140,255,0.5)', borderColor: 'rgba(188,140,255,0.8)', borderWidth: 1, borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ¥${ctx.raw.toLocaleString()}` } } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { ticks: { callback: v => '¥' + (v / 10000).toFixed(0) + '万' }, grid: { color: 'rgba(48,54,61,0.8)' } }
+      }
+    }
+  });
+
+  // 利益率
+  charts.rate = new Chart(document.getElementById('profitRateChart'), {
+    type: 'line',
+    data: {
+      labels: monthLabels,
+      datasets: [{ label: '利益率', data: d.profitRates, borderColor: 'rgba(63,185,80,1)', backgroundColor: 'rgba(63,185,80,0.1)', borderWidth: 2, pointBackgroundColor: 'rgba(63,185,80,1)', pointRadius: 5, tension: 0.3, fill: true }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `  利益率: ${ctx.raw.toFixed(2)}%` } } },
+      scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => v + '%' }, grid: { color: 'rgba(48,54,61,0.8)' } } }
+    }
+  });
+
+  // キャッシュフロー
+  charts.cash = new Chart(document.getElementById('cashChart'), {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [{
+        label: '簡易キャッシュ',
+        data: d.cash,
+        backgroundColor: d.cash.map((_, i) => i === d.currentMonth - 1 ? 'rgba(210,153,34,0.8)' : 'rgba(88,166,255,0.7)'),
+        borderColor: d.cash.map((_, i) => i === d.currentMonth - 1 ? 'rgba(210,153,34,1)' : 'rgba(88,166,255,1)'),
+        borderWidth: 1, borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `  簡易C/F: ¥${ctx.raw.toLocaleString()}` } } },
+      scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => '¥' + (v / 10000).toFixed(0) + '万' }, grid: { color: 'rgba(48,54,61,0.8)' } } }
+    }
+  });
+
+  // 仕入数・販売数
+  charts.units = new Chart(document.getElementById('unitChart'), {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        { label: '仕入数', data: d.buyUnits, backgroundColor: 'rgba(188,140,255,0.6)', borderColor: 'rgba(188,140,255,1)', borderWidth: 1, borderRadius: 4 },
+        { label: '販売数', data: d.sellUnits, backgroundColor: 'rgba(57,208,216,0.6)', borderColor: 'rgba(57,208,216,1)', borderWidth: 1, borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, padding: 12 } }, tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${ctx.raw}個` } } },
+      scales: { x: { grid: { display: false } }, y: { ticks: { callback: v => v + '個' }, grid: { color: 'rgba(48,54,61,0.8)' } } }
+    }
+  });
+}
+
+// =============================================
+//  テーブル構築
+// =============================================
+function buildTable(monthLabels, d) {
+  const { sales, profit, profitRates, purchase, buyUnits, sellUnits, cash, currentMonth } = d;
+  let totS = 0, totP = 0, totPu = 0, totBu = 0, totSu = 0, totCa = 0;
+
+  const tbody = document.getElementById('monthly-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  monthLabels.forEach((label, i) => {
+    const s = sales[i] || 0, p = profit[i] || 0, pr = profitRates[i] || 0;
+    const pu = purchase[i] || 0, bu = buyUnits[i] || 0, su = sellUnits[i] || 0, ca = cash[i] || 0;
+    const avg = su > 0 ? s / su : 0;
+    totS += s; totP += p; totPu += pu; totBu += bu; totSu += su; totCa += ca;
+    const isCur = i === currentMonth - 1;
+
+    const tr = document.createElement('tr');
+    if (isCur) tr.className = 'current-month';
+    tr.innerHTML = `
+      <td>${label}${isCur ? ' ◀' : ''}</td>
+      <td>${fmtYen(s)}</td>
+      <td class="color-green">${fmtYen(p)}</td>
+      <td${pr >= 35 ? ' class="color-green"' : ''}>${pr.toFixed(2)}%</td>
+      <td>${fmtYen(pu)}</td>
+      <td>${bu}個</td>
+      <td>${su}個</td>
+      <td>${fmtYen(avg)}</td>
+      <td${isCur ? ' class="color-yellow"' : ''}>${fmtYen(ca)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const avgRate = totS > 0 ? totP / totS * 100 : 0;
+  const totAvg = totSu > 0 ? totS / totSu : 0;
+  setHtml('monthly-tfoot', `
+    <tr style="font-weight:700;background:var(--surface2)">
+      <td>合計</td>
+      <td class="color-teal">${fmtYen(totS)}</td>
+      <td class="color-green">${fmtYen(totP)}</td>
+      <td>${avgRate.toFixed(2)}%</td>
+      <td>${fmtYen(totPu)}</td>
+      <td>${totBu}個</td>
+      <td>${totSu}個</td>
+      <td>${fmtYen(totAvg)}</td>
+      <td>${fmtYen(totCa)}</td>
+    </tr>
+  `);
+}
+
+// =============================================
+//  UIアップデート
+// =============================================
+function updateUI(dash, monthly) {
+  // ヘッダー
+  const year     = findVal(dash, '対象年') || '——';
+  const curMonth = parseInt(findVal(dash, '最新月（自動判定）')) || 0;
+
+  setText('badge-year', `${year}年`);
+  setText('current-month', `${year}年${curMonth}月（最新月）`);
+  setText('ytd-period', `${year}年 1〜${curMonth}月`);
+  setText('table-period', `${year}年 1〜${curMonth}月`);
+
+  // ===== ダッシュボードシート =====
+  // 今月KPI
+  const salesStr   = findVal(dash, '売上（今月）');
+  const salesMoMStr= findVal(dash, '前月比（増減率）', 0, 1); // 売上行の直下2行を後で正確に取る
+  const profitStr  = findVal(dash, '利益（今月）');
+  const cashStr    = findVal(dash, '簡易キャッシュ（今月）');
+
+  // 前月比（行インデックスで取得）
+  const salesIdx   = dash.findIndex(r => r[0] && r[0].includes('売上（今月）'));
+  const profitIdx  = dash.findIndex(r => r[0] && r[0].includes('利益（今月）'));
+  const cashIdx    = dash.findIndex(r => r[0] && r[0].includes('簡易キャッシュ（今月）'));
+  const sMoM = salesIdx  >= 0 && dash[salesIdx  + 2] ? dash[salesIdx  + 2][1] : '';
+  const pMoM = profitIdx >= 0 && dash[profitIdx + 2] ? dash[profitIdx + 2][1] : '';
+  const cMoM = cashIdx   >= 0 && dash[cashIdx   + 2] ? dash[cashIdx   + 2][1] : '';
+
+  setText('sales-this-month',   fmtYen(num(salesStr)));
+  setText('profit-this-month',  fmtYen(num(profitStr)));
+  setText('cash-this-month',    fmtYen(num(cashStr)));
+  setBadge('sales-mom-badge',   momArrow(sMoM), momClass(sMoM));
+  setBadge('profit-mom-badge',  momArrow(pMoM), momClass(pMoM));
+  setBadge('cash-mom-badge',    momArrow(cMoM), momClass(cMoM));
+
+  // 仕入（D列=index3がラベル、E列=index4が値）
+  const purchaseAmt = num(findVal(dash, '仕入れ金額',       3, 4));
+  const purchaseNum = num(findVal(dash, '仕入れ個数',       3, 4));
+  const purchaseAvg = num(findVal(dash, '平均仕入単価',     3, 4));
+  const sellNum     = num(findVal(dash, '販売個数（今月）', 3, 4));
+  setText('purchase-amt', fmtYen(purchaseAmt));
+  setText('purchase-num', `${purchaseNum}個 仕入れ`);
+  setText('purchase-avg', `平均 ${fmtYen(purchaseAvg)}/個`);
+  setText('sell-num', `${sellNum}個`);
+
+  // 年間累計
+  const ytdSalesStr  = findVal(dash, '累計売上',   3, 4);
+  const ytdProfitStr = findVal(dash, '累計利益',   3, 4);
+  const ytdRateStr   = findVal(dash, '累計利益率', 3, 4);
+  setText('ytd-sales',       fmtYen(num(ytdSalesStr)));
+  setText('ytd-profit',      fmtYen(num(ytdProfitStr)));
+  setText('ytd-profit-rate', ytdRateStr || '——');
+
+  // 在庫
+  const stockAmt      = num(findVal(dash, '在庫金額',      3, 4));
+  const stockNum      = num(findVal(dash, '在庫個数',      3, 4));
+  const turnRateVal   = num(findVal(dash, '回転率',        3, 4));
+  const profitPerItem = num(findVal(dash, '1個あたり利益', 3, 4));
+  setText('stock-amt',       fmtYen(stockAmt));
+  setText('stock-num',       `${stockNum}個`);
+  setText('turn-rate',       turnRateVal.toFixed(3));
+  setText('profit-per-item', fmtYen(profitPerItem));
+  const turnEl = document.getElementById('turn-rate');
+  if (turnEl) turnEl.style.color = turnRateVal < 0.3 ? 'var(--red)' : 'var(--green)';
+  setText('turn-note', turnRateVal < 0.3 ? '⚠ 滞留注意' : '✓ 問題なし');
+
+  // 目標対比
+  const targetSalesVal = num(findVal(dash, '今月売上目標', 3, 4));
+  const achieveRateStr = findVal(dash, '今月達成率',       3, 4);
+  const profitRateStr  = findVal(dash, '今月利益率',       3, 4);
+  const achievePct     = pct(achieveRateStr);
+  setText('target-sales',   fmtYen(targetSalesVal));
+  setText('achieve-rate-text', achieveRateStr || '——');
+  setText('profit-rate-this', profitRateStr || '——');
+  setBadge('profit-rate-badge', `利益率 ${profitRateStr || '——'}`, 'badge-green');
+  const pb = document.getElementById('achieve-progress');
+  if (pb) pb.style.width = Math.min(achievePct, 100) + '%';
+  const prNote = document.getElementById('profit-rate-note');
+  if (prNote) {
+    const pn = pct(profitRateStr);
+    prNote.textContent = pn >= 35 ? '✓ 利益率は良好' : '△ 利益率を改善へ';
+    prNote.style.color = pn >= 35 ? 'var(--green)' : 'var(--yellow)';
+  }
+  setBadge('target-badge', achievePct >= 100 ? '✓ 目標達成' : `⚠ 達成率 ${achieveRateStr || '——'}`,
+    achievePct >= 100 ? 'badge-green' : 'badge-red');
+
+  // アラート
+  const alertEl = document.getElementById('main-alert');
+  if (alertEl) {
+    if (turnRateVal < 0.3) {
+      alertEl.className = 'alert-box';
+      alertEl.textContent = `⚠ 回転率が低下しています（${turnRateVal.toFixed(3)}）。在庫の滞留整理を検討してください。`;
+    } else if (achievePct < 50) {
+      alertEl.className = 'alert-box';
+      alertEl.textContent = `⚠ 今月の売上達成率が ${achieveRateStr} です。積極的な出品を検討してください。`;
+    } else {
+      alertEl.className = 'alert-box info';
+      alertEl.textContent = '✓ 現時点で大きな問題は検出されていません。';
+    }
+  }
+
+  // ===== 月間推移シート =====
+  const salesArr       = findMonthlyRow(monthly, '売上（AT）');
+  const profitArr      = findMonthlyRow(monthly, '利益（AX');       // 部分一致
+  const purchaseArr    = findMonthlyRow(monthly, '仕入金額');
+  const cashArr        = findMonthlyRow(monthly, '簡易キャッシュ');
+  const buyUnitsArr    = findMonthlyRow(monthly, '仕入個数');
+  const sellUnitsArr   = findMonthlyRow(monthly, '販売個数');
+  const profitRateArr  = findMonthlyRow(monthly, '利益率').map(v => pct(String(v)));
+
+  // 年間累計キャッシュは月間推移の合計列（col O = index 14）から
+  const ytdCashRow = monthly.find(r => r[1] && r[1].includes('簡易キャッシュ'));
+  if (ytdCashRow && ytdCashRow[14]) {
+    setText('ytd-cash', fmtYen(num(ytdCashRow[14])));
+  } else {
+    const sumCash = cashArr.slice(0, curMonth).reduce((a, b) => a + b, 0);
+    setText('ytd-cash', fmtYen(sumCash));
+  }
+
+  const n = curMonth || 1;
+  const monthLabels = Array.from({ length: n }, (_, i) => `${i + 1}月`);
+  const chartData = {
+    currentMonth: curMonth,
+    sales:       salesArr.slice(0, n),
+    profit:      profitArr.slice(0, n),
+    purchase:    purchaseArr.slice(0, n),
+    cash:        cashArr.slice(0, n),
+    buyUnits:    buyUnitsArr.slice(0, n),
+    sellUnits:   sellUnitsArr.slice(0, n),
+    profitRates: profitRateArr.slice(0, n),
+  };
+
+  // 利益率リスト
+  setHtml('profit-rate-list', monthLabels.map((label, i) => `
+    <div class="kpi-row">
+      <span class="kpi-label">${label}${i === n - 1 ? ' <span class="badge badge-teal" style="font-size:10px">最新</span>' : ''}</span>
+      <span class="kpi-val${i === n - 1 ? ' color-green' : ''}">${chartData.profitRates[i].toFixed(2)}%</span>
+    </div>
+  `).join(''));
+
+  buildTable(monthLabels, chartData);
+  buildCharts(monthLabels, chartData);
+}
+
+// =============================================
+//  メイン
+// =============================================
+async function loadData() {
+  const overlay = document.getElementById('loading-overlay');
+  const errEl   = document.getElementById('error-msg');
+  if (overlay) overlay.style.display = 'flex';
+  if (errEl)   errEl.style.display = 'none';
+
+  try {
+    const [dash, monthly] = await Promise.all([
+      fetchCSV(DASHBOARD_GID),
+      fetchCSV(MONTHLY_GID),
+    ]);
+    updateUI(dash, monthly);
+  } catch (e) {
+    console.error(e);
+    if (errEl) {
+      errEl.style.display = 'block';
+      errEl.innerHTML = `
+        <strong>データの取得に失敗しました</strong><br>
+        スプレッドシートが「リンクを知っている全員が閲覧可」に設定されているか確認してください。<br>
+        <small style="color:var(--text-muted)">${e.message}</small>
+      `;
+    }
+  } finally {
+    if (overlay) overlay.style.display = 'none';
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
