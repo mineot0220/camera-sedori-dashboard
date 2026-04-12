@@ -283,7 +283,7 @@
   <!-- 上段KPI -->
   <div class="grid-4">
     <div class="card">
-      <div class="card-label">今月売上</div>
+      <div class="card-label" id="label-sales-month">——売上</div>
       <div class="card-value color-teal" id="sales-this-month">——</div>
       <div class="card-sub">
         <span class="badge" id="sales-mom-badge">——</span>
@@ -291,7 +291,7 @@
       </div>
     </div>
     <div class="card">
-      <div class="card-label">今月利益</div>
+      <div class="card-label" id="label-profit-month">——利益</div>
       <div class="card-value color-green" id="profit-this-month">——</div>
       <div class="card-sub">
         <span class="badge badge-green" id="profit-rate-badge">利益率 ——</span>
@@ -299,7 +299,7 @@
       </div>
     </div>
     <div class="card">
-      <div class="card-label">今月仕入</div>
+      <div class="card-label" id="label-purchase-month">——仕入</div>
       <div class="card-value" id="purchase-amt">——</div>
       <div class="card-sub">
         <span id="purchase-num">——</span>
@@ -370,12 +370,12 @@
   <!-- 目標達成 -->
   <div class="card" style="margin-bottom:16px">
     <div class="section-header">
-      <div class="section-title"><span class="section-dot dot-red"></span>今月の目標対比</div>
+      <div class="section-title"><span class="section-dot dot-red"></span><span id="label-target-month">——</span>の目標対比</div>
       <span class="badge" id="target-badge">——</span>
     </div>
     <div class="grid-3" style="margin-bottom:12px; gap:16px;">
       <div>
-        <div class="card-label">今月売上目標</div>
+        <div class="card-label" id="label-target-sales-month">——売上目標</div>
         <div class="card-value-sm" id="target-sales">——</div>
         <div class="progress-wrap">
           <div class="progress-header">
@@ -388,12 +388,12 @@
         </div>
       </div>
       <div>
-        <div class="card-label">今月販売個数</div>
+        <div class="card-label" id="label-sell-num-month">——販売個数</div>
         <div class="card-value-sm" id="sell-num">——</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:6px">販売個数</div>
       </div>
       <div>
-        <div class="card-label">今月利益率</div>
+        <div class="card-label" id="label-profit-rate-month">——利益率</div>
         <div class="card-value-sm color-green" id="profit-rate-this">——</div>
         <div id="profit-rate-note" style="font-size:12px;margin-top:6px;color:var(--green)">——</div>
       </div>
@@ -835,7 +835,10 @@ function updateUI(dash, monthly) {
   };
 
   // グローバルに保存（月切替で使用）
-  G = { ...chartData };
+  G = { ...chartData, year };
+
+  // 月ラベルを初期表示
+  updateMonthLabels(year, curMonth);
 
   // 月セレクター初期化
   initMonthSelect(curMonth, year);
@@ -902,10 +905,23 @@ function initMonthSelect(currentMonth, year) {
 // =============================================
 //  月切替ハンドラー
 // =============================================
+// 年月ラベルを一括更新
+function updateMonthLabels(year, m) {
+  const label = `${year}年${m}月`;
+  setText('label-sales-month',       `${label}売上`);
+  setText('label-profit-month',      `${label}利益`);
+  setText('label-purchase-month',    `${label}仕入`);
+  setText('label-target-month',      label);
+  setText('label-target-sales-month',`${label}売上目標`);
+  setText('label-sell-num-month',    `${label}販売個数`);
+  setText('label-profit-rate-month', `${label}利益率`);
+}
+
 function onMonthChange(val) {
   const m = parseInt(val);
   if (!m || !G.currentMonth) return;
   updateKPIForMonth(m);
+  updateMonthLabels(G.year, m);
 
   // 過去月バッジ
   const badge = document.getElementById('viewing-past-badge');
