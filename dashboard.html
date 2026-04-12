@@ -155,6 +155,20 @@
     }
     .refresh-btn:hover { border-color: var(--teal); color: var(--teal); }
 
+    /* 月セレクター */
+    .month-select {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: 4px 10px;
+      font-size: 12px; font-family: inherit; cursor: pointer;
+      appearance: none; -webkit-appearance: none;
+      padding-right: 24px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      transition: border-color 0.15s;
+    }
+    .month-select:hover, .month-select:focus { border-color: var(--teal); outline: none; }
+    .viewing-past { background: var(--yellow-dim); border: 1px solid var(--yellow); border-radius: 6px; padding: 3px 10px; font-size: 11px; color: var(--yellow); display: none; }
+
     /* Responsive */
     @media (max-width: 900px) {
       .grid-4 { grid-template-columns: 1fr 1fr; }
@@ -195,8 +209,12 @@
     <button class="nav-btn">目標設定</button>
   </nav>
   <div class="header-right">
+    <span class="viewing-past" id="viewing-past-badge">過去月表示中</span>
     <button class="refresh-btn" onclick="loadData()">↻ 更新</button>
-    <span class="date-badge">📅 <span id="current-month">——</span></span>
+    <span style="font-size:12px;color:var(--text-muted)">📅</span>
+    <select class="month-select" id="month-select" onchange="onMonthChange(this.value)" disabled>
+      <option value="">読込中...</option>
+    </select>
   </div>
 </header>
 
@@ -392,6 +410,9 @@
 const SHEET_ID = '17i0SkrlAsfGoAGgjyjKXeH1cfLdmF6YQgrD-ok3bLnA';
 const DASHBOARD_GID  = '1741962268';
 const MONTHLY_GID    = '1045067849';
+
+// グローバルに月別データを保持（月切替に使用）
+let G = {}; // { currentMonth, sales[], profit[], profitRates[], purchase[], cash[], buyUnits[], sellUnits[] }
 
 Chart.defaults.color = '#8b949e';
 Chart.defaults.borderColor = '#30363d';
@@ -755,6 +776,12 @@ function updateUI(dash, monthly) {
     profitRates: profitRateArr.slice(0, n),
   };
 
+  // グローバルに保存（月切替で使用）
+  G = { ...chartData };
+
+  // 月セレクター初期化
+  initMonthSelect(curMonth, year);
+
   // 利益率リスト
   setHtml('profit-rate-list', monthLabels.map((label, i) => `
     <div class="kpi-row">
@@ -794,6 +821,89 @@ async function loadData() {
     }
   } finally {
     if (overlay) overlay.style.display = 'none';
+  }
+}
+
+// =============================================
+//  月セレクター初期化
+// =============================================
+function initMonthSelect(currentMonth, year) {
+  const sel = document.getElementById('month-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  for (let m = 1; m <= currentMonth; m++) {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = `${year}年 ${m}月`;
+    if (m === currentMonth) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.disabled = false;
+}
+
+// =============================================
+//  月切替ハンドラー
+// =============================================
+function onMonthChange(val) {
+  const m = parseInt(val);
+  if (!m || !G.currentMonth) return;
+  updateKPIForMonth(m);
+
+  // 過去月バッジ
+  const badge = document.getElementById('viewing-past-badge');
+  if (badge) badge.style.display = (m < G.currentMonth) ? 'inline-block' : 'none';
+
+  // テーブルのハイライト行を更新
+  document.querySelectorAll('#monthly-tbody tr').forEach((tr, i) => {
+    tr.classList.toggle('current-month', i === m - 1);
+    const first = tr.querySelector('td:first-child');
+    if (first) first.textContent = `${i + 1}月${i === m - 1 ? ' ◀' : ''}`;
+  });
+}
+
+// =============================================
+//  選択月でKPIカードを更新
+// =============================================
+function updateKPIForMonth(m) {
+  const i = m - 1; // 0-indexed
+  const prevI = i - 1;
+
+  const s  = G.sales[i]      || 0;
+  const p  = G.profit[i]     || 0;
+  const pu = G.purchase[i]   || 0;
+  const ca = G.cash[i]       || 0;
+  const pr = G.profitRates[i]|| 0;
+  const su = G.sellUnits[i]  || 0;
+  const bu = G.buyUnits[i]   || 0;
+  const avgPu = bu > 0 ? pu / bu : 0;
+
+  // 前月比計算
+  const calcMoM = (cur, prev) => prev > 0 ? ((cur - prev) / prev * 100) : null;
+  const fmtMoM  = (pct) => pct === null ? '——' : (pct >= 0 ? `▲ +${pct.toFixed(1)}%` : `▼ ${pct.toFixed(1)}%`);
+  const momCls  = (pct) => pct === null ? 'badge-blue' : (pct >= 0 ? 'badge-green' : 'badge-red');
+
+  const sMoMPct  = calcMoM(s,  G.sales[prevI]);
+  const pMoMPct  = calcMoM(p,  G.profit[prevI]);
+  const caMoMPct = calcMoM(ca, G.cash[prevI]);
+
+  setText('sales-this-month',  fmtYen(s));
+  setText('profit-this-month', fmtYen(p));
+  setText('purchase-amt',      fmtYen(pu));
+  setText('purchase-num',      `${bu}個 仕入れ`);
+  setText('purchase-avg',      `平均 ${fmtYen(avgPu)}/個`);
+  setText('cash-this-month',   fmtYen(ca));
+  setText('sell-num',          `${su}個`);
+  setText('profit-rate-this',  `${pr.toFixed(2)}%`);
+  setBadge('profit-rate-badge', `利益率 ${pr.toFixed(2)}%`, 'badge-green');
+  setBadge('sales-mom-badge',  fmtMoM(sMoMPct),  momCls(sMoMPct));
+  setBadge('profit-mom-badge', fmtMoM(pMoMPct),  momCls(pMoMPct));
+  setBadge('cash-mom-badge',   fmtMoM(caMoMPct), momCls(caMoMPct));
+
+  // 利益率ノート
+  const prNote = document.getElementById('profit-rate-note');
+  if (prNote) {
+    prNote.textContent = pr >= 35 ? '✓ 利益率は良好' : '△ 利益率を改善へ';
+    prNote.style.color = pr >= 35 ? 'var(--green)' : 'var(--yellow)';
   }
 }
 
