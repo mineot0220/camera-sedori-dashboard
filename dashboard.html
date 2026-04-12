@@ -131,7 +131,8 @@
     .grid-chart { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
 
     /* Card */
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(57,208,216,0.18); border-color: rgba(57,208,216,0.45); }
     .card-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
     .card-value { font-size: 28px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
     .card-value-lg { font-size: 36px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
@@ -217,6 +218,40 @@
     .month-select:hover, .month-select:focus { border-color: var(--teal); outline: none; }
     .viewing-past { background: var(--yellow-dim); border: 1px solid var(--yellow); border-radius: 6px; padding: 3px 10px; font-size: 11px; color: var(--yellow); display: none; }
 
+    /* ===== アニメーション ===== */
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes valuePop {
+      0%   { opacity: 0.2; transform: scale(0.86); }
+      60%  { transform: scale(1.05); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes badgeBounce {
+      0%   { opacity: 0; transform: scale(0.5) translateY(6px); }
+      65%  { transform: scale(1.18); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes spinRefresh { to { transform: rotate(360deg); } }
+    @keyframes glowPulse {
+      0%, 100% { text-shadow: 0 0 6px rgba(57,208,216,0.3); }
+      50%       { text-shadow: 0 0 18px rgba(57,208,216,0.8), 0 0 36px rgba(57,208,216,0.25); }
+    }
+    @keyframes kpiFade {
+      0%   { opacity: 1; }
+      25%  { opacity: 0; transform: translateY(-4px); }
+      55%  { opacity: 0; transform: translateY(4px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .card-animate { animation: fadeSlideIn 0.48s cubic-bezier(0.16,1,0.3,1) forwards; }
+    .value-pop    { animation: valuePop 0.42s cubic-bezier(0.34,1.56,0.64,1) both; }
+    .badge-bounce { animation: badgeBounce 0.45s cubic-bezier(0.34,1.56,0.64,1) both; }
+    .kpi-fade     { animation: kpiFade 0.35s ease both; }
+    .color-teal   { animation: glowPulse 3.5s ease-in-out infinite; }
+    .spin-icon    { display: inline-block; animation: spinRefresh 0.65s linear infinite; }
+    .refresh-btn.is-loading { color: var(--teal); border-color: var(--teal); pointer-events: none; }
+
     /* Responsive */
     @media (max-width: 900px) {
       .grid-4 { grid-template-columns: 1fr 1fr; }
@@ -268,7 +303,7 @@
   </nav>
   <div class="header-right">
     <span class="viewing-past" id="viewing-past-badge">過去月表示中</span>
-    <button class="refresh-btn" onclick="loadData()">↻ 更新</button>
+    <button class="refresh-btn" id="refresh-btn" onclick="loadData()"><span id="refresh-icon">↻</span> 更新</button>
     <span style="font-size:12px;color:var(--text-muted)">📅</span>
     <select class="month-select" id="month-select" onchange="onMonthChange(this.value)" disabled>
       <option value="">読込中...</option>
@@ -730,19 +765,24 @@ function updateUI(dash, monthly) {
   const pMoM = profitIdx >= 0 && dash[profitIdx + 2] ? dash[profitIdx + 2][1] : '';
   const cMoM = cashIdx   >= 0 && dash[cashIdx   + 2] ? dash[cashIdx   + 2][1] : '';
 
-  setText('sales-this-month',   fmtYen(num(salesStr)));
-  setText('profit-this-month',  fmtYen(num(profitStr)));
-  setText('cash-this-month',    fmtYen(num(cashStr)));
+  // カウントアップで表示（アニメーション）
+  countUp('sales-this-month',  num(salesStr),  950);
+  countUp('profit-this-month', num(profitStr), 950);
+  countUp('cash-this-month',   num(cashStr),   950);
   setBadge('sales-mom-badge',   momArrow(sMoM), momClass(sMoM));
   setBadge('profit-mom-badge',  momArrow(pMoM), momClass(pMoM));
   setBadge('cash-mom-badge',    momArrow(cMoM), momClass(cMoM));
+  // バッジポップ
+  popEl('sales-mom-badge',  'badge-bounce', 350);
+  popEl('profit-mom-badge', 'badge-bounce', 420);
+  popEl('cash-mom-badge',   'badge-bounce', 490);
 
   // 仕入（D列=index3がラベル、E列=index4が値）
   const purchaseAmt = num(findVal(dash, '仕入れ金額',       3, 4));
   const purchaseNum = num(findVal(dash, '仕入れ個数',       3, 4));
   const purchaseAvg = num(findVal(dash, '平均仕入単価',     3, 4));
   const sellNum     = num(findVal(dash, '販売個数（今月）', 3, 4));
-  setText('purchase-amt', fmtYen(purchaseAmt));
+  countUp('purchase-amt', purchaseAmt, 950);
   setText('purchase-num', `${purchaseNum}個 仕入れ`);
   setText('purchase-avg', `平均 ${fmtYen(purchaseAvg)}/個`);
   setText('sell-num', `${sellNum}個`);
@@ -751,8 +791,8 @@ function updateUI(dash, monthly) {
   const ytdSalesStr  = findVal(dash, '累計売上',   3, 4);
   const ytdProfitStr = findVal(dash, '累計利益',   3, 4);
   const ytdRateStr   = findVal(dash, '累計利益率', 3, 4);
-  setText('ytd-sales',       fmtYen(num(ytdSalesStr)));
-  setText('ytd-profit',      fmtYen(num(ytdProfitStr)));
+  countUp('ytd-sales', num(ytdSalesStr), 1100);
+  countUp('ytd-profit', num(ytdProfitStr), 1100);
   setText('ytd-profit-rate', ytdRateStr || '——');
 
   // 在庫
@@ -777,8 +817,16 @@ function updateUI(dash, monthly) {
   setText('achieve-rate-text', achieveRateStr || '——');
   setText('profit-rate-this', profitRateStr || '——');
   setBadge('profit-rate-badge', `利益率 ${profitRateStr || '——'}`, 'badge-green');
+  // ⑤ プログレスバー：0→達成率へアニメーション
   const pb = document.getElementById('achieve-progress');
-  if (pb) pb.style.width = Math.min(achievePct, 100) + '%';
+  if (pb) {
+    pb.style.transition = 'none';
+    pb.style.width = '0%';
+    setTimeout(() => {
+      pb.style.transition = 'width 1.3s cubic-bezier(0.16,1,0.3,1)';
+      pb.style.width = Math.min(achievePct, 100) + '%';
+    }, 60);
+  }
   const prNote = document.getElementById('profit-rate-note');
   if (prNote) {
     const pn = pct(profitRateStr);
@@ -853,6 +901,14 @@ function updateUI(dash, monthly) {
 
   buildTable(monthLabels, chartData);
   buildCharts(monthLabels, chartData);
+
+  // ③ カードフェードスライドイン（初回のみ）
+  setTimeout(animateCardsIn, 80);
+  // KPI値のポップ
+  popEl('sales-this-month',  'value-pop',  120);
+  popEl('profit-this-month', 'value-pop',  200);
+  popEl('purchase-amt',      'value-pop',  280);
+  popEl('cash-this-month',   'value-pop',  360);
 }
 
 // =============================================
@@ -863,6 +919,7 @@ async function loadData() {
   const errEl   = document.getElementById('error-msg');
   if (overlay) overlay.style.display = 'flex';
   if (errEl)   errEl.style.display = 'none';
+  setRefreshSpin(true);
 
   try {
     const [dash, monthly] = await Promise.all([
@@ -882,6 +939,7 @@ async function loadData() {
     }
   } finally {
     if (overlay) overlay.style.display = 'none';
+    setRefreshSpin(false);
   }
 }
 
@@ -920,6 +978,13 @@ function updateMonthLabels(year, m) {
 function onMonthChange(val) {
   const m = parseInt(val);
   if (!m || !G.currentMonth) return;
+  // ⑥ 月切替フェード
+  const i = m - 1;
+  flashKPI(
+    G.sales[i]||0, G.profit[i]||0, G.purchase[i]||0, G.cash[i]||0,
+    G.buyUnits[i]||0, G.sellUnits[i]||0, G.profitRates[i]||0,
+    G.buyUnits[i]>0 ? (G.purchase[i]||0)/(G.buyUnits[i]) : 0
+  );
   updateKPIForMonth(m);
   updateMonthLabels(G.year, m);
 
@@ -979,6 +1044,77 @@ function updateKPIForMonth(m) {
     prNote.textContent = pr >= 35 ? '✓ 利益率は良好' : '△ 利益率を改善へ';
     prNote.style.color = pr >= 35 ? 'var(--green)' : 'var(--yellow)';
   }
+}
+
+// =============================================
+//  アニメーションユーティリティ
+// =============================================
+
+// ① 数字カウントアップ（¥表記）
+function countUp(id, target, duration = 900) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!target || target === 0) { el.textContent = fmtYen(0); return; }
+  const start = performance.now();
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  (function tick(now) {
+    const p = Math.min((now - start) / duration, 1);
+    el.textContent = '¥' + Math.round(target * ease(p)).toLocaleString('ja-JP');
+    if (p < 1) requestAnimationFrame(tick);
+  })(start);
+}
+
+// ② 要素のポップ/バウンスアニメーション
+function popEl(id, cls = 'value-pop', delay = 0) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  setTimeout(() => {
+    el.classList.remove(cls);
+    void el.offsetWidth; // reflow
+    el.classList.add(cls);
+  }, delay);
+}
+
+// ③ カードフェードスライドイン（初回ロードのみ）
+let _cardsAnimated = false;
+function animateCardsIn() {
+  if (_cardsAnimated) return;
+  _cardsAnimated = true;
+  const cards = [...document.querySelectorAll('.card')];
+  cards.forEach(c => { c.style.opacity = '0'; });
+  requestAnimationFrame(() => {
+    cards.forEach((card, i) => {
+      setTimeout(() => {
+        card.style.opacity = '';
+        card.classList.add('card-animate');
+        setTimeout(() => card.classList.remove('card-animate'), 520);
+      }, i * 55);
+    });
+  });
+}
+
+// ④ 更新ボタンのスピン
+function setRefreshSpin(on) {
+  const btn  = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  if (!btn || !icon) return;
+  btn.classList.toggle('is-loading', on);
+  icon.classList.toggle('spin-icon', on);
+}
+
+// ⑤ KPIカード月切替フェード＋カウントアップ
+function flashKPI(s, p, pu, ca, bu, su, pr, avgPu) {
+  const ids = ['sales-this-month','profit-this-month','purchase-amt','cash-this-month','sell-num','profit-rate-this'];
+  ids.forEach((id, i) => popEl(id, 'kpi-fade', i * 30));
+  ['sales-mom-badge','profit-mom-badge','cash-mom-badge','profit-rate-badge'].forEach((id, i) => {
+    popEl(id, 'badge-bounce', 160 + i * 40);
+  });
+  setTimeout(() => {
+    countUp('sales-this-month',  s,  700);
+    countUp('profit-this-month', p,  700);
+    countUp('purchase-amt',      pu, 700);
+    countUp('cash-this-month',   ca, 700);
+  }, 90);
 }
 
 loadData();
