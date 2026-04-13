@@ -185,8 +185,8 @@
     }
     .race-start-zone { margin-right: 6px; }
     .race-goal-zone  { margin-left: 6px; }
-    .race-start-img  { width: 60px; height: 60px; object-fit: contain; }
-    .race-goal-img   { width: 28px; height: 64px; object-fit: contain; }
+    .race-start-img  { width: 44px; height: 44px; object-fit: contain; }
+    .race-goal-img   { width: 20px; height: 48px; object-fit: contain; }
     .race-zone-label { font-size: 9px; color: var(--text-muted); margin-top: 2px; letter-spacing: 1px; font-weight: 700; }
     .race-road-wrap  { flex: 1; display: flex; flex-direction: column; }
     .race-road {
@@ -211,26 +211,26 @@
       position: absolute;
       top: 0; left: 0; bottom: 0;
       width: 0%;
-      background: linear-gradient(90deg, #3b5bdb 0%, #39d0d8 100%);
+      background: linear-gradient(90deg, #f5a623 0%, #f7d26a 100%);
       border-radius: 2px;
       transition: width 2.2s cubic-bezier(0.16,1,0.3,1);
-      opacity: 0.35;
+      opacity: 0.55;
     }
     .race-kart {
       position: absolute;
-      width: 60px;
-      height: 54px;
+      width: 44px;
+      height: 40px;
       object-fit: contain;
-      bottom: 30px;
+      bottom: 22px;
       left: 0%;
-      transform: translateX(-50%);
+      transform: translateX(-50%) scaleX(-1); /* scaleX(-1)で右向きに反転 */
       transition: left 2.2s cubic-bezier(0.16,1,0.3,1);
-      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7));
+      filter: drop-shadow(0 2px 5px rgba(0,0,0,0.7));
       image-rendering: auto;
     }
     .race-pct-label {
       position: absolute;
-      bottom: -18px;
+      bottom: -20px;
       left: 0%;
       transform: translateX(-50%);
       font-size: 11px;
@@ -239,6 +239,10 @@
       white-space: nowrap;
       transition: left 2.2s cubic-bezier(0.16,1,0.3,1);
       text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      background: rgba(210,153,34,0.18);
+      border: 1px solid rgba(210,153,34,0.45);
+      border-radius: 6px;
+      padding: 1px 5px;
     }
     .race-road-ticks {
       display: flex;
