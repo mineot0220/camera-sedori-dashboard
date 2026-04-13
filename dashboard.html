@@ -218,6 +218,80 @@
     .month-select:hover, .month-select:focus { border-color: var(--teal); outline: none; }
     .viewing-past { background: var(--yellow-dim); border: 1px solid var(--yellow); border-radius: 6px; padding: 3px 10px; font-size: 11px; color: var(--yellow); display: none; }
 
+    /* ===== マリオアイコン ===== */
+    @keyframes coinSpin {
+      0%   { transform: rotateY(0deg)   scaleX(1); }
+      25%  { transform: rotateY(90deg)  scaleX(0.05); }
+      50%  { transform: rotateY(180deg) scaleX(1); }
+      75%  { transform: rotateY(270deg) scaleX(0.05); }
+      100% { transform: rotateY(360deg) scaleX(1); }
+    }
+    @keyframes starTwinkle {
+      0%,100% { transform: rotate(0deg) scale(1);   filter: brightness(1) drop-shadow(0 0 4px rgba(255,220,0,0.6)); }
+      50%     { transform: rotate(180deg) scale(1.2); filter: brightness(1.6) drop-shadow(0 0 14px rgba(255,220,0,1)); }
+    }
+    @keyframes mushBounce {
+      0%,100% { transform: translateY(0) scale(1); }
+      40%     { transform: translateY(-10px) scale(1.12); }
+      60%     { transform: translateY(-8px) scale(1.08); }
+    }
+    @keyframes qBlockBump {
+      0%,100% { transform: translateY(0); }
+      30%     { transform: translateY(-8px); }
+      55%     { transform: translateY(-4px); }
+      75%     { transform: translateY(-6px); }
+    }
+    @keyframes oneBounce {
+      0%,100% { transform: translateY(0) rotate(0deg); }
+      50%     { transform: translateY(-10px) rotate(10deg); }
+    }
+    .mario-icon {
+      position: absolute; top: 12px; right: 12px;
+      width: 40px; height: 40px; opacity: 0.88;
+      image-rendering: pixelated;
+    }
+    .mario-icon.coin-icon { animation: coinSpin 1.8s linear infinite; }
+    .mario-icon.star-icon { animation: starTwinkle 1.6s ease-in-out infinite; }
+    .mario-icon.mush-icon { animation: mushBounce 1.3s ease-in-out infinite; }
+    .mario-icon.q-icon    { animation: qBlockBump 1.1s ease-in-out infinite; }
+    .mario-icon.one-icon  { animation: oneBounce 1.4s ease-in-out infinite; }
+
+    /* ===== コイン飛散エフェクト ===== */
+    @keyframes coinFly {
+      0%   { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+      80%  { opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.4); opacity: 0; }
+    }
+    @keyframes starBurst {
+      0%   { transform: translate(0,0) scale(0.5) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) scale(1.5) rotate(var(--rot)); opacity: 0; }
+    }
+    #celebration-overlay {
+      position: fixed; inset: 0; pointer-events: none; z-index: 8000; overflow: hidden;
+    }
+    .cel-coin {
+      position: absolute; width: 28px; height: 28px;
+      background-size: cover; border-radius: 50%;
+      animation: coinFly var(--dur) ease-out forwards;
+    }
+    .cel-star {
+      position: absolute; width: 24px; height: 24px;
+      background-size: cover;
+      animation: starBurst var(--dur) ease-out forwards;
+    }
+
+    /* ===== ローディング画面（マリオ） ===== */
+    .mario-loading-img {
+      width: 72px; height: 72px;
+      image-rendering: pixelated;
+      animation: mushBounce 0.9s ease-in-out infinite;
+    }
+    .loading-text-mario {
+      color: var(--yellow); font-size: 15px; font-weight: 700;
+      letter-spacing: 1px;
+      animation: glowPulse 1.2s ease-in-out infinite;
+    }
+
     /* ===== アニメーション ===== */
     @keyframes fadeSlideIn {
       from { opacity: 0; transform: translateY(40px) scale(0.94); }
@@ -282,10 +356,13 @@
   </div>
 </div>
 
+<!-- Celebration -->
+<div id="celebration-overlay"></div>
+
 <!-- Loading -->
 <div id="loading-overlay">
-  <div class="spinner"></div>
-  <p>スプレッドシートからデータ取得中…</p>
+  <img id="mario-loading-img" class="mario-loading-img" src="" alt="loading">
+  <p class="loading-text-mario">データ読み込み中…</p>
 </div>
 
 <!-- Header -->
@@ -317,7 +394,8 @@
 
   <!-- 上段KPI -->
   <div class="grid-4">
-    <div class="card">
+    <div class="card" style="position:relative">
+      <img class="mario-icon coin-icon" id="icon-coin" src="" alt="">
       <div class="card-label" id="label-sales-month">——売上</div>
       <div class="card-value color-teal" id="sales-this-month">——</div>
       <div class="card-sub">
@@ -325,7 +403,8 @@
         <span>前月比</span>
       </div>
     </div>
-    <div class="card">
+    <div class="card" style="position:relative">
+      <img class="mario-icon star-icon" id="icon-star" src="" alt="">
       <div class="card-label" id="label-profit-month">——利益</div>
       <div class="card-value color-green" id="profit-this-month">——</div>
       <div class="card-sub">
@@ -333,7 +412,8 @@
         <span class="badge" id="profit-mom-badge">——</span>
       </div>
     </div>
-    <div class="card">
+    <div class="card" style="position:relative">
+      <img class="mario-icon q-icon" id="icon-question" src="" alt="">
       <div class="card-label" id="label-purchase-month">——仕入</div>
       <div class="card-value" id="purchase-amt">——</div>
       <div class="card-sub">
@@ -341,7 +421,8 @@
         <span class="color-muted" id="purchase-avg">——</span>
       </div>
     </div>
-    <div class="card">
+    <div class="card" style="position:relative">
+      <img class="mario-icon one-icon" id="icon-oneup" src="" alt="">
       <div class="card-label">簡易キャッシュ</div>
       <div class="card-value color-yellow" id="cash-this-month">——</div>
       <div class="card-sub">
@@ -500,6 +581,59 @@
 // =============================================
 //  設定
 // =============================================
+// =============================================
+//  マリオ画像（Base64）
+// =============================================
+const MARIO_IMGS = {
+  coin: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAACkUlEQVR4nO1by0rDQBS9c421IESQxk1fC/ETxJ0LNy7qwo9w7dpP8AfcCf6CC6W4ENyJCOLSLq1SkFY0lepGiaRSsSVNZjJ3komTs0mY3M4958ydvDoByJEjh8lgSSY72QOPN3ZrPxluTBfBaRnCdBeu2giWFeGqjGBZE05tBGZZPEV+lnTyxnZ0zOlxcpXAkhDOI5rKDFEjmCrxMqJlzRAxAbMiXqRfkQq1QAXB2s7V1KD24RpFjjjniSAw3sAoV4fEwoQTG8FjAs9UYCTidwWEExshawKmKh4EqybGeSGKP0ollxWfkAmxDTgJcU/VmT4uwviE6cC0Rk15f5zA/zD6MlWAlEl0gCg/1PEJTxWCdKHKhM2Do9Wb5vnK37bbs4tlvx00AcYuL44bGJyZ8QYvbtHzvN+bkYHbL/rtKu4MA3lGcQTFsJ3SwH3qzvv7/e7zvF1afAeNgFLzn2PUnHrZ7d4/Lvj7/tapV9w4/VBhUh9Kl1UEeadWcXsPnaEBvceOXaqW3STE804DiyTbSETAzcxsce7Tfxz5eBsUhgkLs19jv0kZFmlvU4xw6tXX1uV1dTj6foxGF1lLSa8jI3yh7cO1pSJA6w5gfQO0g6Wy883Gz9a2x+fkqF0HIBgOBMOBYDgQDAfyBlK9hk4KvHwxrZUZaWFSH4LhQJHgrEwDEZ4IhgODGv/reSBIF4p2ovs0EOWH0w6EVYGuJoTxmqYHwXBg2MEsVUGc0ZeuAF1MkOGBUQFRV4S0TVC+PkBnEyhWiCBvMt1MoBBP/kpsRErlH6jURqNIMK+rqqpBxTpBFoeI0StF/8LYtcK6rSWQeXjDNJNTQDY/o6Ni8BcjkzD2m6FJGPvVWJa+G8yRA8zGN6EX/jUUy9hmAAAAAElFTkSuQmCC",
+  star: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAByElEQVR4nO2bi2nEMAxAZeERuks6wQ2TgTJCh+gEuR06wu2Q4kIgtG5iW7KkID84Do6LpOgXydwBDAaDgSLrApumftRU7p51gW37gk0zC9B9FLSjv7+0sgDBOaihNEV7eoAJEIyQHKJRBug5+qYyQCsLEJyDntPfZAZIlwF6jn4ighZvy/PPZ695kjYjiEc/d+O/ec3T8xPgfe5vH4IkJTdf8707OGBtrH2pZhgoF5ca+OOAhqg+P8p6AqVUIvnGOlIqv9TenKPif1+0+tjKcWXnWUMNJZ5lc0RNGTA8EtONX5VIPBOwX3inbNgpfYxiibAkaPcmidKoEqNfM0OEGsGsmdBpEqwdoEKtAva+wERJvecIrQot9QXK2IytStn6AhHqzoAU5dpO4FiYAoch0n2htd5zBGBEoi9wr8kIjPQuiR5nBAjOwTuVQI8zAgTnIDgHwTnIJUhqNObuAwjOQXAOahugvVAFrfo/zvMtuwTXVBhBmNwiczx7TO+S5wxRTtV11DQOYaPF9bW1LFoIVAFn0eLY26/kU/tABOMHFr2zId5hZ+/ZJKPFqEs2yUC5+DiTS/yaw4puM//2sGLDYDAYDAaDAdyRb3Zv3gwLcUcXAAAAAElFTkSuQmCC",
+  mushroom: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAACI0lEQVR4nO2asXLCMAyGJV0eITMMXTqxsOYRMnTqWp6Kma6dOvAIWVmYunRIZt4hXLgzFw7HsR05OGd9EwmOrF+WZeMAIAiCIAiCIAiCIKQHvqLTtm3bJ0cQX+ILxSDedD80OEcnh9XqJu6rrkfbfq/XD9e7pgnqI4YS26fIc3g7naxt/G+398/V5fL0PWdQMm7RnVhOdPbaumarIRkwCOcWPYQpi1QNcQ1Exj2n++nLie0U6gLhEoSMu5gpRzkD4VI/XIOArqnuW8w6bJ7VBc41AP3VZKxgoo14Ncd9HHEJApf4vr1uFTEFgWzFczE0NULVjs5/3dKsQFvxU0fCF65+hzKBIHFortR/NUNTgSByfKeP7XOUwuibsoBiGQlOGy7tCRaCrSjXYFEIJ3zb29gz7SN8+st8nPDd0nLBaRt1N20LoS4QIYVPRbcZyqYYjFnspBqwaxrUHUUtGdkK+/wcPjBtij4vf/fPP/k7e/sxTD+JyfQgx1Toi9FdT20/xth5AIY8/DQ5rxtZ1/Ym1MCNnQhlNsaUkQPArKfAPtgK91oGdxEHwlW4Aqd0ajM1dGltSmfX9r7CFQgzvBniXgX6hXnqazKEmd4N+rKId4N98v0eiqJ4uPe72YAvH+fzw3VVVQBlCdEGwEZETBAkDkHiECQOQeIQJA5B4hC3wbIs8bZWB6Cz29lfRAZUzEEIFVSEgByPR7Y/P3KPvCAIgiCAcAVU5SD0ZmHfrQAAAABJRU5ErkJggg==",
+  question: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABt0lEQVR4nO2bMVLDMBBFv/+o9yFo4BjUuQENTY7AMThCGhpqmjQ0HIM0aahpOEGYFGYyysqxEZLt/byZNJLs9VsptizbwD/aNKmKxzsc4IyH53NfqsinvJq+Ruv19RZO2Gx2K2skNJa8J/FUIrok0PuwT9H5Mq7w3PuWHyEOIQ4hDiFOmCJoe/v+c02O+Xq72bpNQNsjHreplQhiRvI57WedgPaXMjWSEEoHSEnsn85vRK/uD+b2Jf8OxEzk+8pLjgSiMinJofWLSUBr9NpQOatdqVFAVGJsz9YaCYQ47Fs58UjsR4hDq/DzY7c6/nJ2/NfX7tz9pZzCpY1ygrbRJGfMiS2eFOUeSwqiILGwNdOziNuVvCIQhRmbhJry1U6CQ5NQW77qesBR5lTw0khwORHaZ0yFS0GIQ4hDiEOIQ4hDiEOIQ4hDiEOIQ4hDiBNqB6z94GOW7wdYt8RTJSZMEdRaC+jK3DwaWwqsHXDsmmBpCHEIcVg7oMz7AUshTBG062XZecCcZoWEOIQ4hDiEOLQKX17hEsuLqY8KvSUh9ul8m7ihwtdjp53NvkqPxH4c0sgLXr2QwzdmvqUjLonbOwAAAABJRU5ErkJggg==",
+  superstar: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAACBElEQVR4nO1by23DMAylCK2Qsw8dopqgw2SgDNMJ7B16yblDuFBbA6rhjz4USVd6QC4GLYqfR5EyAtDR0dHR0SGG8QGznHYAlFTePMYHzPMHzJJZgM1HQTr6y08qCxAaB0oo9dF+fQMVQFAC7xAJGmDL0VeVAVJZgNA4sOX0V5kB3DTAlqOvMgP+pQPGxOhz0gChcaBW7nNlgS15mWODMTrcHUzu+iZXqYeWqj69x8ltOcpc7djKddBelpijF5dMuKojlsw4ooiJWag4G15+GDXcDDzHCvKJUU8+BdwdTCzP9ozxeH7OMDhi+QLjk47BHCfsbZ7qeanxHsnHR2xdCDftI/n97PZXXZjeqfI5fCfpA9yvgpS6sDaEWj416iSdoCupC4QoMb64FZZ2Qqnxxa2wh98Ad7+Qy/ctGCDEui4cVe+tghYjTxH1atOgW1Fir2rnPqc2nmUcXht11tmlyqumQA2opsAWPK9z2tnSd9VRYEg0ZJGvTQEEBoROOHNEKFPbeA/Dyf+ULDjr+6nqgAVGxNCBI+piDpAyUvV3gUl4oDJS53/Yz+fMElR1wAIztgaZ8I6B+xLW8qk6j1rOZcslHDAljq+cI7YpXeAoWhRz+9n64hcitS8sameDpV6wxsxes0hajVHnLJKm5OXwK3JNw7XpVvNvDy176Ojo6OjogGviCwlMBDDvfsbxAAAAAElFTkSuQmCC",
+  oneup: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAACzElEQVR4nO2aQUvcQBTH//OMhx4KPWyhIOhlb8L2IMhu2YO3Fpqv4MGLH0G2IHhQqPgBPAh69gNsP4AQpBd7WFhF8NAVjwq11UPZuikJRLJrkp1M3mSzZH6wbDJJ3rz3n5mX2ZkFDAaDwWAwGAwGg8FQPsQkKnVd133hiBAT8YWKEHxSuW5EHpXMt+b94Hpfe2PvXfiyMHR+vXut1UehK9gwlWYFZ5/PpG0sfVt6Pr51bl9c5xTF4g7aC5aTKHs9t8eWQywwBM4ddBxJvSjIIWmFsLjHdLj7ciI7hDwh0ohgcSezwFFOIdLkj7QiiLRdXTWZecg8GyVcWgHCb5NxCVPIBB+McRVH0ojAFXzYnvcWSRKBZIPnIm5o6Modnv9Rr+YAIRt81pZQhaveuJ5AKDmUV9efNHFDgVBwVIeP7HNUhtZP6gVUlJbgtJHmfsKUIBtUWrFIhxOq98vYS5pHqNRnqTihOqXlgtM2jRZ4k4WoRYhRB+KcaN+08fjvcajs5ONJ7Pnpp1Mc1A/8z9GHIyy+WYQuoiZDVhaDoyIcNg5xcX+BlXcr0jb6bh/r39f94+rrKrbeb2HVWUVeUFShTC+IYuPHBo5/His7c/XnCnOv5qCDXKbCd3/vMj2/XFnG5e9L5IkVd8FXqwXtk6JZMeuPf2/94qH/gO3ONnsdST+JraQHuUQYuAOQIP97RszgafAUmQN0kGk9IJwPVHJCwPmvc9Qrdf+48baB7n0Xugl8HrciZMkYezbSgtIq8F53D5u1TaxV1/zznc4OdBE0lOzegZiG5XAdgQeILJUWQQjVwANE0XeGogjno6zbZAI57Q2qMhV7g2H2m/toNptDZbXdGlTptDpD547jwIaNwgogE0SRIJQcQskhlBxCySGUHELJIW6Dtm0L712tA38OYNtiKnqAwyyCLlEFNNJut9n+/Mjd8gaDwWAwwPAf7uRPTCKN0ucAAAAASUVORK5CYII=",
+};
+
+// =============================================
+//  マリオ画像セットアップ
+// =============================================
+function setupMarioImages() {
+  const el = document.getElementById('mario-loading-img');
+  if (el) el.src = MARIO_IMGS.mushroom;
+  const ic = (id, key) => { const e = document.getElementById(id); if(e) e.src = MARIO_IMGS[key]; };
+  ic('icon-coin',     'coin');
+  ic('icon-star',     'star');
+  ic('icon-question', 'question');
+  ic('icon-oneup',    'oneup');
+}
+
+// =============================================
+//  目標達成お祝いエフェクト
+// =============================================
+function celebrateGoal() {
+  const overlay = document.getElementById('celebration-overlay');
+  if (!overlay) return;
+  overlay.innerHTML = '';
+  const count = 30;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    const isStar = Math.random() > 0.5;
+    el.className = isStar ? 'cel-star' : 'cel-coin';
+    el.style.backgroundImage = `url(${isStar ? MARIO_IMGS.superstar : MARIO_IMGS.coin})`;
+    const startX = Math.random() * window.innerWidth;
+    const startY = window.innerHeight + 20;
+    const tx = (Math.random() - 0.5) * 400 + 'px';
+    const ty = -(Math.random() * window.innerHeight + 200) + 'px';
+    const rot = (Math.random() * 720 - 360) + 'deg';
+    const dur = (1.5 + Math.random() * 1.5) + 's';
+    const delay = Math.random() * 0.8 + 's';
+    el.style.cssText += `left:${startX}px; top:${startY}px;
+      --tx:${tx}; --ty:${ty}; --rot:${rot}; --dur:${dur};
+      animation-delay:${delay};`;
+    overlay.appendChild(el);
+  }
+  setTimeout(() => { overlay.innerHTML = ''; }, 4000);
+}
+
 const SHEET_ID = '17i0SkrlAsfGoAGgjyjKXeH1cfLdmF6YQgrD-ok3bLnA';
 const DASHBOARD_GID  = '1741962268';
 const MONTHLY_GID    = '1045067849';
@@ -833,8 +967,9 @@ function updateUI(dash, monthly) {
     prNote.textContent = pn >= 35 ? '✓ 利益率は良好' : '△ 利益率を改善へ';
     prNote.style.color = pn >= 35 ? 'var(--green)' : 'var(--yellow)';
   }
-  setBadge('target-badge', achievePct >= 100 ? '✓ 目標達成' : `⚠ 達成率 ${achieveRateStr || '——'}`,
+  setBadge('target-badge', achievePct >= 100 ? '🎉 目標達成！' : `⚠ 達成率 ${achieveRateStr || '——'}`,
     achievePct >= 100 ? 'badge-green' : 'badge-red');
+  if (achievePct >= 100) setTimeout(celebrateGoal, 600);
 
   // アラート
   const alertEl = document.getElementById('main-alert');
@@ -1117,6 +1252,7 @@ function flashKPI(s, p, pu, ca, bu, su, pr, avgPu) {
   }, 180);
 }
 
+setupMarioImages();
 loadData();
 </script>
 </body>
